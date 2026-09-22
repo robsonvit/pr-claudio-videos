@@ -1,15 +1,18 @@
 """
-montar_video.py — Montagem final do vídeo JESUS usando FFmpeg.
+montar_video.py — Montagem final do vídeo PR CLÁUDIO usando FFmpeg.
 
-Correções aplicadas:
+Correcões aplicadas:
   [FIX-1] Legendas limpas: pontuação removida, agrupamento em MÁXIMO 2 palavras
   [FIX-2] Frame freeze: fps=30 + setpts=PTS-STARTPTS em todos os clips antes do concat
   [FIX-3] Legenda embolada: escape seguro via re.sub + pausa mínima 0.6s por bloco
   [FIX-4] Voz rápida: tempo mínimo por bloco aumentado para 0.6s
-  [FIX-5] Volume voz 110%, música 20%
+  [FIX-5] Volume voz 110%, música 15% (piano melancólico não ofusca a voz)
   [FIX-6] Legendas sem sobreposição: fim de cada bloco limitado ao início do próximo
   [FIX-7] Câmera lenta 0.5x nos clips Pexels (setpts=2.0*PTS)
   [FIX-8] Embaralhamento dinâmico: ordem diferente a cada reciclagem de clips
+  [VIRAL] Legendas alternando BRANCO e AMARELO por bloco (estilo Pr. Cláudio Duarte)
+  [VIRAL] Marca d'água translucida "MOTIVA CRISTO OFC" no centro inferior
+  [VIRAL] Filtro cinemático escuro+contraste (colorx + lum_contrast simulado via curves/eq)
 """
 
 import json
@@ -103,6 +106,7 @@ def gerar_filtro_legendas(word_timings: list, font_file: str) -> str:
     [FIX-1] Máximo 2 palavras por bloco (era 3 — muito para velocidade da voz)
     [FIX-3] Pausa mínima de 0.6s por bloco (era 0.35 — muito rápido)
     [FIX-1] Texto limpo sem pontuação para não quebrar sintaxe FFmpeg
+    [VIRAL] Alterna cores BRANCO (#FFFFFF) e AMARELO (#FFD700) a cada bloco
 
     Args:
         word_timings: [{word, start, duration}] do Groq Whisper
@@ -142,6 +146,9 @@ def gerar_filtro_legendas(word_timings: list, font_file: str) -> str:
             fim = inicio + 0.60
         blocos_raw.append((inicio, fim, grupo))
 
+    # [VIRAL] Paleta de cores alternadas: BRANCO e AMARELO DOURADO
+    CORES_ALTERNADAS = ["#FFFFFF", "#FFD700"]
+
     filtros = []
     for i, (inicio, fim, grupo) in enumerate(blocos_raw):
         # [FIX-6] Garante que fim não ultrapassa o início do próximo bloco
@@ -163,12 +170,15 @@ def gerar_filtro_legendas(word_timings: list, font_file: str) -> str:
         if not texto_escapado.strip():
             continue
 
+        # [VIRAL] Alterna cor: par=branco, ímpar=amarelo
+        cor_atual = CORES_ALTERNADAS[i % 2]
+
         f = (
             f"drawtext="
             f"fontfile={font_file}:"
             f"text='{texto_escapado}':"
             f"fontsize={FONT_SIZE}:"
-            f"fontcolor=#FFD700:"        # Amarelo dourado
+            f"fontcolor={cor_atual}:"
             f"borderw=5:"               # Outline preto espesso
             f"bordercolor=black:"
             f"x=(w-text_w)/2:"          # Centralizado horizontalmente
@@ -394,29 +404,29 @@ def montar_video(
         font_file=FONT_FILE,
     )
 
-    # Filter complex: legendas → HDR → glow
+    # Filter complex: legendas → filtro cinemático (escuro + contraste) → glow
     filter_complex = (
         f"[0:v]{legenda_filter},"
         f"curves=preset=strong_contrast,"
-        f"eq=saturation=1.40:contrast=1.12:brightness=0.02,"
+        f"eq=saturation=1.30:contrast=1.15:brightness=-0.05,"
         f"split[vmain][vcopy];"
         f"[vcopy]gblur=sigma=7[vblur];"
-        f"[vmain][vblur]blend=all_mode=screen:all_opacity=0.12[vout]"
+        f"[vmain][vblur]blend=all_mode=screen:all_opacity=0.10[vout]"
     )
 
     # ── Monta áudio: narração pura OU narração + fundo 20% ────────────────────
     # [FIX-5] Voz em 110% (Fish Audio é baixinho), música em 20%
     if musica_escolhida:
-        print("Mixando narracao + musica de fundo (voz 110%, fundo 20%)...")
+        print("Mixando narracao + musica de fundo (voz 110%, fundo 15%)...")
         ffmpeg_inputs = [
             "-i", video_concat,
             "-i", audio_file,
             "-i", musica_escolhida,
         ]
-        # amix: voz em 110%, música em 20%. duration=first → corta na narração
+        # [FIX-5] Voz 110%, música 15% (piano suave não ofusca a voz grave do pastor)
         audio_filter = (
             "[1:a]volume=1.10[voz];"
-            "[2:a]volume=0.20,atrim=duration=" + str(duracao_total) + "[bgm];"
+            "[2:a]volume=0.15,atrim=duration=" + str(duracao_total) + "[bgm];"
             "[voz][bgm]amix=inputs=2:duration=first:dropout_transition=0[aout]"
         )
         filter_final = filter_complex + f";{audio_filter}"
