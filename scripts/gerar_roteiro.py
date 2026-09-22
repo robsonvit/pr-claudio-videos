@@ -378,7 +378,7 @@ SUA RESPOSTA INTEIRA DEVE COMEÇAR COM A CHAVE E TERMINAR COM A CHAVE.
 Retorne APENAS um JSON válido com esta estrutura exata (sem markdown, sem texto extra):
 {{
     "titulo": "TÍTULO EM MAIÚSCULAS — impactante e curto (máx 55 chars)",
-    "roteiro_fala": "Texto completo da narração. Frases muito curtas. 50-80 palavras no máximo. USE RETICÊNCIAS (...) no lugar de pontos finais para forçar pausas longas e dramáticas na voz. Comece com o gancho forte. Encerre com Amém.",
+    "roteiro_fala": "Texto completo da narração. Tamanho ideal: 70 a 100 palavras. INCLUA emoções do Fish Audio no início de CADA frase usando colchetes (ex: [serious] A vida ensina..., [sad] E isso dói..., [hopeful] Mas Deus restaura...). Use palavras em INGLÊS para a emoção. Comece com o gancho forte. Encerre com Amém.",
     "b_roll": [
         {{"momento": "gancho (0-3s)", "keyword": "pastor podcast microphone studio"}},
         {{"momento": "corpo 1", "keyword": "lonely man walking road fog"}},

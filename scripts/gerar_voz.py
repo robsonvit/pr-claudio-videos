@@ -156,9 +156,6 @@ def gerar_voz(texto: str, output_audio: str, output_timing: str) -> list:
     2. Qualquer que seja a fonte, converte para MP3 se necessário
     3. faster-whisper (local) extrai timestamps precisos
     """
-    # Adiciona respiros longos artificialmente para a voz não soar corrida
-    texto = texto.replace(". ", "... ").replace("! ", "... ").replace("? ", "?... ")
-
     work = Path(output_audio).parent
     fonte_usada = "?"
 
