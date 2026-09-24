@@ -29,7 +29,7 @@ from openai import OpenAI
 
 # ── Configurações Fish Audio ──────────────────────────────────────────────────
 FISH_API_KEY    = os.environ.get("FISH_API_KEY", "")
-FISH_VOICE_ID   = "463b15774d54450498f28fbff9edb647"   # Voz Pr. Cláudio (canal PR CLÁUDIO)
+FISH_VOICE_ID   = "3195723ee4fe4a1cbcbd21d65dc213ad"   # Voz Pr. Cláudio (canal PR CLÁUDIO)
 FISH_MODEL      = "s2.1-pro-free"                       # Modelo gratuito
 FISH_API_URL    = "https://api.fish.audio/v1/tts"
 
