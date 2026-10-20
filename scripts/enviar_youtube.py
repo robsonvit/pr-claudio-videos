@@ -1,13 +1,25 @@
 import json
 import os
+import sys
 import requests
 import subprocess
 import tempfile
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Força o encoding UTF-8 no stdout para suportar emojis no console do Windows
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+load_dotenv()
 
 # URLs da API do YouTube
 YT_TOKEN_URL = "https://oauth2.googleapis.com/token"
 YT_UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
+YT_CHANNELS_URL = "https://www.googleapis.com/youtube/v3/channels"
 
 PROJETO_ROOT = Path(__file__).parent.parent
 CREDENTIALS_FILE = PROJETO_ROOT / "youtube_credentials.json"
@@ -174,3 +186,36 @@ def set_thumbnail_from_video(video_id: str, token: str, video_path: str):
     finally:
         if thumb_path and os.path.exists(thumb_path):
             os.remove(thumb_path)
+
+
+def testar_conexao_youtube() -> bool:
+    """Verifica se o token do YouTube é válido e exibe o canal associado."""
+    try:
+        token = obter_access_token()
+        resp = requests.get(
+            f"{YT_CHANNELS_URL}?part=snippet&mine=true",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            items = resp.json().get("items", [])
+            if items:
+                title = items[0]["snippet"]["title"]
+                cid = items[0]["id"]
+                print("✅ Conexão com o YouTube validada com sucesso!")
+                print(f"  Canal: {title}")
+                print(f"  Channel ID: {cid}")
+                return True
+            else:
+                print("⚠️ Token válido, mas nenhum canal encontrado nesta conta Google.")
+                return False
+        else:
+            print(f"❌ Erro ao validar canal do YouTube: {resp.status_code} - {resp.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Erro na autenticação do YouTube: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    testar_conexao_youtube()

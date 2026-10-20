@@ -1,0 +1,31 @@
+# Ambientes e arquivos locais
+.env
+*.env
+youtube_credentials.json
+log.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Vídeos e temporários
+output/
+temp/
+*.mp4
+*.mp3
+*.wav
+
+# IDE e sistema
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+.DS_Store
