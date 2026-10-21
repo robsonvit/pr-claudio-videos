@@ -99,7 +99,14 @@ def enviar_video_youtube(video_path: str, titulo: str, descricao: str, tags: lis
         headers=headers_init,
         json=metadata,
     )
-    init_resp.raise_for_status()
+    if not init_resp.ok:
+        try:
+            err_json = init_resp.json()
+            err_msg = err_json.get("error", {}).get("message", init_resp.text)
+        except Exception:
+            err_msg = init_resp.text
+        raise Exception(f"Erro na API do YouTube ({init_resp.status_code}): {err_msg}")
+
     upload_url = init_resp.headers["Location"]
     print("  ✓ URL de upload obtida.")
 
@@ -133,7 +140,12 @@ def enviar_video_youtube(video_path: str, titulo: str, descricao: str, tags: lis
                 pct = int(offset * 100 / file_size)
                 print(f"  Enviando... {pct}%", end="\r")
             else:
-                raise Exception(f"Erro no upload: {chunk_resp.status_code} {chunk_resp.text}")
+                try:
+                    err_json = chunk_resp.json()
+                    err_msg = err_json.get("error", {}).get("message", chunk_resp.text)
+                except Exception:
+                    err_msg = chunk_resp.text
+                raise Exception(f"Erro no upload do vídeo ({chunk_resp.status_code}): {err_msg}")
 
     if not video_id:
         raise Exception("Upload falhou – video_id não retornado.")
