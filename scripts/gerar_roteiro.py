@@ -13,6 +13,13 @@ import re
 from pathlib import Path
 from openai import OpenAI
 
+# Garante acesso aos módulos auxiliares na mesma pasta
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Trava rígida de idioma PT-BR
+from validador_idioma import validar_roteiro_ptbr
+
+
 # ── Configurações OpenRouter ───────────────────────────────────────────────────
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -184,6 +191,12 @@ Estrutura Obrigatória:
 
 ---
 
+# REGRA INVIOLÁVEL DE IDIOMA — PORTUGUÊS DO BRASIL (PT-BR) OBRIGATÓRIO
+- O canal é 100% brasileiro (Canal PR CLÁUDIO / JESUS).
+- O campo "titulo" e o campo "roteiro_fala" DEVEM SER OBRIGATORIAMENTE EM PORTUGUÊS DO BRASIL (PT-BR).
+- É TERMINANTEMENTE PROIBIDO gerar o texto da narração ou o título em inglês ou qualquer outro idioma que não seja português brasileiro.
+- APENAS os nomes das emoções dentro dos colchetes (ex: [serious], [sad], [hopeful]) e as palavras-chave do Pexels ficam em inglês. TODO o restante do texto da narração DEVE ser em português do Brasil fluido e emocionante.
+
 # INSTRUÇÕES DE FORMATAÇÃO E EMOÇÃO (FISH AUDIO)
 - Retorne APENAS um objeto JSON válido (sem texto fora do JSON).
 - O roteiro deve ter o tamanho ideal de 70 a 100 palavras.
@@ -333,10 +346,15 @@ CRÍTICO E OBRIGATÓRIO: VOCÊ DEVE RETORNAR APENAS E EXCLUSIVAMENTE O OBJETO JS
 NÃO ESCREVA NENHUMA PALAVRA ANTES OU DEPOIS. NÃO ESCREVA RACIOCINIOS NEM EXPLICAÇÕES.
 SUA RESPOSTA INTEIRA DEVE COMEÇAR COM A CHAVE E TERMINAR COM A CHAVE.
 
+REGRA DE BLOQUEIO DE IDIOMA:
+O "titulo" e o "roteiro_fala" DEVEM SER OBRIGATORIAMENTE EM PORTUGUÊS DO BRASIL (PT-BR).
+NUNCA GERE A NARRAÇÃO EM INGLÊS. SE VOCÊ GERAR A FALA EM INGLÊS, O SISTEMA TRAVARÁ E REJEITARÁ A RESPOSTA.
+Apenas as emoções entre colchetes como [serious] e as palavras-chave do Pexels ficam em inglês.
+
 Retorne APENAS um JSON válido com esta estrutura exata (sem markdown, sem texto extra):
 {{
-    "titulo": "TÍTULO EM MAIÚSCULAS — impactante e curto (máx 55 chars)",
-    "roteiro_fala": "Texto completo da narração. Tamanho ideal: 70 a 100 palavras. INCLUA emoções do Fish Audio no início de CADA frase usando colchetes (ex: [serious] A vida ensina..., [sad] E isso dói..., [hopeful] Mas Deus restaura...). Use palavras em INGLÊS para a emoção. Comece com o gancho forte. Encerre com Amém.",
+    "titulo": "TÍTULO EM MAIÚSCULAS — impactante e curto em português (máx 55 chars)",
+    "roteiro_fala": "Texto completo da narração EM PORTUGUÊS DO BRASIL. Tamanho ideal: 70 a 100 palavras. INCLUA emoções do Fish Audio no início de CADA frase usando colchetes (ex: [serious] A vida ensina..., [sad] E isso dói..., [hopeful] Mas Deus restaura...). As palavras dentro dos colchetes ficam em INGLÊS. O texto falado DEVE SER 100% EM PORTUGUÊS DO BRASIL. Comece com o gancho forte. Encerre com Amém.",
     "b_roll": [
         {{"momento": "gancho (0-3s)", "keyword": "pastor podcast microphone studio"}},
         {{"momento": "corpo 1", "keyword": "lonely man walking road fog"}},
@@ -386,8 +404,18 @@ Para "hashtags_tema", gere EXATAMENTE 3 hashtags em português (sem espaços, se
             if not content:
                 raise ValueError(f"{modelo} retornou conteúdo vazio")
 
-            result = _extrair_json(content)
-            print(f"  ✅ Roteiro gerado com sucesso via {modelo}")
+            dados_extraidos = _extrair_json(content)
+
+            # ── TRAVA RIGOROSA PT-BR ──────────────────────────────────────────
+            fala = dados_extraidos.get("roteiro_fala", "")
+            tit = dados_extraidos.get("titulo", "")
+            valido, motivo = validar_roteiro_ptbr(fala, tit)
+            if not valido:
+                print(f"  🚨 [TRAVA PT-BR REJEITOU MODELO {modelo}]: {motivo}")
+                raise ValueError(f"Trava PT-BR violada pelo modelo {modelo}: {motivo}")
+
+            result = dados_extraidos
+            print(f"  ✅ Roteiro gerado e validado em PT-BR via {modelo}")
             
             # Estratégia de velocidade: Move o modelo que funcionou para o topo da lista
             # Assim, no próximo vídeo dessa mesma rodada, ele será o primeiro a ser testado!

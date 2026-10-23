@@ -23,6 +23,14 @@ try:
 except ImportError:
     HAVE_FASTER_WHISPER = False
 
+# Garante acesso aos módulos auxiliares na mesma pasta
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Trava de idioma PT-BR
+from validador_idioma import validar_ou_levantar_erro
+
+
+
 import soundfile as sf
 import requests
 from openai import OpenAI
@@ -125,7 +133,16 @@ def _extrair_timestamps_local(audio_path: str) -> list:
     model = WhisperModel("base", device="cpu", compute_type="int8")
     
     segments, info = model.transcribe(audio_path, word_timestamps=True)
-    
+    print(f"  [Whisper] Idioma detectado no áudio: '{info.language}' (certeza: {info.language_probability:.1%})")
+
+    # ── TRAVA PT-BR NO ÁUDIO ──────────────────────────────────────────────────
+    if info.language != "pt" and info.language_probability >= 0.60:
+        raise RuntimeError(
+            f"🚨 [TRAVA PT-BR NO ÁUDIO]: O Whisper detectou que o áudio gerado está no idioma '{info.language}' "
+            f"({info.language_probability:.1%} de confiança) e NÃO em Português do Brasil! "
+            f"O pipeline bloqueou este vídeo para impedir postagem em inglês."
+        )
+
     timings = []
     for segment in segments:
         for word in segment.words:
@@ -151,11 +168,15 @@ def gerar_voz(texto: str, output_audio: str, output_timing: str) -> list:
     """
     Pipeline de geração de voz com fallback automático.
 
-    1º Tenta Fish Audio API (s2.1-pro-free, voz clonada)
+    1. TRAVA PT-BR: Valida estritamente se o texto está em Português do Brasil
+    2. Tenta Fish Audio API (s2.1-pro-free, voz clonada)
        → Se falhar, usa Kokoro local (pm_santa, PT-BR)
-    2. Qualquer que seja a fonte, converte para MP3 se necessário
-    3. faster-whisper (local) extrai timestamps precisos
+    3. Qualquer que seja a fonte, converte para MP3 se necessário
+    4. faster-whisper (local) extrai timestamps precisos e valida idioma do áudio
     """
+    # ── TRAVA DE ENTRADA: Impede geração se texto não for PT-BR ──────────────
+    validar_ou_levantar_erro(texto)
+
     work = Path(output_audio).parent
     fonte_usada = "?"
 

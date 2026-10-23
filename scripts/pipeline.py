@@ -38,6 +38,8 @@ from montar_video import montar_video, get_media_duration, SHELBY_CLIP_DURATION
 from enviar_telegram import enviar_video_telegram, enviar_mensagem_telegram
 from enviar_youtube import enviar_video_youtube
 from enviar_facebook import enviar_facebook_reels
+from validador_idioma import validar_roteiro_ptbr, validar_ou_levantar_erro
+
 
 # ── Paths do projeto ────────────────────────────────────────────────────────────────
 PROJETO_ROOT = Path(__file__).parent.parent
@@ -68,11 +70,29 @@ def executar_pipeline(numero: int = 1) -> bool:
     try:
         # ── Passo 1: Escolhe tema e gera roteiro ──────────────────────────
         print("\n📝 [1/6] Gerando roteiro via OpenRouter...")
-        tema = escolher_tema()
-        roteiro = gerar_roteiro(tema)
+        roteiro = None
+        tema = None
+        max_tentativas_roteiro = 3
+
+        for tentativa in range(1, max_tentativas_roteiro + 1):
+            try:
+                tema = escolher_tema()
+                candidato = gerar_roteiro(tema)
+                # Validação redundante de segurança antes de prosseguir
+                validar_ou_levantar_erro(candidato.get("roteiro_fala", ""), candidato.get("titulo", ""))
+                roteiro = candidato
+                print(f"  🎯 Roteiro aprovado na trava PT-BR (tentativa {tentativa}/{max_tentativas_roteiro})")
+                break
+            except Exception as err_roteiro:
+                print(f"  ⚠️ Tentativa {tentativa} de roteiro falhou: {err_roteiro}")
+                if tentativa == max_tentativas_roteiro:
+                    raise RuntimeError(f"Falha ao gerar roteiro em PT-BR após {max_tentativas_roteiro} tentativas: {err_roteiro}")
 
         # ── Passo 2: Sintetiza voz ────────────────────────────────────────
-        print("\n🎙️ [2/6] Sintetizando narração com Fish Audio...")
+        print("\n🎙️ [2/6] Sintetizando narração com Fish Audio (TRAVA PT-BR ATIVA)...")
+        # Garante que NUNCA sintetizará áudio sem confirmação prévia
+        validar_ou_levantar_erro(roteiro["roteiro_fala"], roteiro["titulo"])
+
         audio_file = str(work_dir / "narration.mp3")
         timing_file = str(work_dir / "timings.json")
         word_timings = gerar_voz(
@@ -80,6 +100,7 @@ def executar_pipeline(numero: int = 1) -> bool:
             output_audio=audio_file,
             output_timing=timing_file,
         )
+
         duracao_audio = calcular_duracao_audio(timing_file)
         print(f"  📊 Duração da narração: {duracao_audio:.1f}s")
 
